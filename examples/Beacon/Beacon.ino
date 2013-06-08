@@ -90,17 +90,17 @@ void loop()
     if (fixFound)
     {
       sprintf(outBuffer, "%d%02d%02d%02d%02d%02d,", year, month, day, hour, minute, second);
-		int len = strlen(outBuffer);
+      int len = strlen(outBuffer);
       PString str(outBuffer + len, sizeof(outBuffer) - len);
       str.print(latitude, 6);
       str.print(",");
       str.print(longitude, 6);
-		str.print(",");
-		str.print(altitude / 100);
-		str.print(",");
-		str.print(tinygps.f_speed_knots(), 1);
-		str.print(",");
-		str.print(tinygps.course() / 100);
+      str.print(",");
+      str.print(altitude / 100);
+      str.print(",");
+      str.print(tinygps.f_speed_knots(), 1);
+      str.print(",");
+      str.print(tinygps.course() / 100);
     }
 
     else

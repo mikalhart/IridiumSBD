@@ -58,96 +58,96 @@ typedef const __FlashStringHelper *FlashString;
 class IridiumSBD
 {
 public:
-	int begin();
-	int sendSBDText(const char *message);
-	int sendSBDBinary(const uint8_t *txData, size_t txDataSize);
-	int sendReceiveSBDText(const char *message, uint8_t *rxBuffer, size_t &rxBufferSize);
-	int sendReceiveSBDBinary(const uint8_t *txData, size_t txDataSize, uint8_t *rxBuffer, size_t &rxBufferSize);
-	int getSignalQuality(int &quality);
+   int begin();
+   int sendSBDText(const char *message);
+   int sendSBDBinary(const uint8_t *txData, size_t txDataSize);
+   int sendReceiveSBDText(const char *message, uint8_t *rxBuffer, size_t &rxBufferSize);
+   int sendReceiveSBDBinary(const uint8_t *txData, size_t txDataSize, uint8_t *rxBuffer, size_t &rxBufferSize);
+   int getSignalQuality(int &quality);
 
-	int getWaitingMessageCount();
-	int sleep();
-	bool isAsleep();
+   int getWaitingMessageCount();
+   int sleep();
+   bool isAsleep();
 
-	void setPowerProfile(int profile);          // 0 = direct connect (default), 1 = USB
-	void adjustATTimeout(int seconds);          // default value = 20 seconds
-	void adjustSendReceiveTimeout(int seconds); // default value = 300 seconds
+   void setPowerProfile(int profile);          // 0 = direct connect (default), 1 = USB
+   void adjustATTimeout(int seconds);          // default value = 20 seconds
+   void adjustSendReceiveTimeout(int seconds); // default value = 300 seconds
    void setMinimumSignalQuality(int quality);  // a number between 1 and 5, default ISBD_DEFAULT_CSQ_MINIMUM
    void useMSSTMWorkaround(bool useWorkAround); // true to use workaround from Iridium Alert 5/7 
 
-	void attachConsole(Stream &stream);
+   void attachConsole(Stream &stream);
 #if ISBD_DIAGS
-	void attachDiags(Stream &stream);
+   void attachDiags(Stream &stream);
 #endif
 
-	IridiumSBD(Stream &str, int sleepPinNo = -1) : 
-		stream(str),
-		pConsoleStream(NULL),
+   IridiumSBD(Stream &str, int sleepPinNo = -1) : 
+      stream(str),
+      pConsoleStream(NULL),
 #if ISBD_DIAGS
-		pDiagsStream(NULL),
+      pDiagsStream(NULL),
 #endif
-		csqInterval(ISBD_DEFAULT_CSQ_INTERVAL),
-		sbdixInterval(ISBD_DEFAULT_SBDIX_INTERVAL),
-		atTimeout(ISBD_DEFAULT_AT_TIMEOUT),
-		sendReceiveTimeout(ISBD_DEFAULT_SENDRECEIVE_TIME),
-		remainingMessages(-1),
-		asleep(true),
-		reentrant(false),
-		sleepPin(sleepPinNo),
+      csqInterval(ISBD_DEFAULT_CSQ_INTERVAL),
+      sbdixInterval(ISBD_DEFAULT_SBDIX_INTERVAL),
+      atTimeout(ISBD_DEFAULT_AT_TIMEOUT),
+      sendReceiveTimeout(ISBD_DEFAULT_SENDRECEIVE_TIME),
+      remainingMessages(-1),
+      asleep(true),
+      reentrant(false),
+      sleepPin(sleepPinNo),
       minimumCSQ(ISBD_DEFAULT_CSQ_MINIMUM),
       useWorkaround(true)
-	{
-		pinMode(sleepPin, OUTPUT);
-	}
+   {
+      pinMode(sleepPin, OUTPUT);
+   }
 
 private:
-	Stream &stream;
-	Stream *pConsoleStream;
+   Stream &stream;
+   Stream *pConsoleStream;
 #if ISBD_DIAGS
-	Stream *pDiagsStream;
+   Stream *pDiagsStream;
 #endif
 
-	// Timings
-	int csqInterval;
-	int sbdixInterval;
-	int atTimeout;
-	int sendReceiveTimeout;
+   // Timings
+   int csqInterval;
+   int sbdixInterval;
+   int atTimeout;
+   int sendReceiveTimeout;
 
-	// State variables  
-	int remainingMessages;
-	bool asleep;
-	bool reentrant;
-	int  sleepPin;
+   // State variables  
+   int remainingMessages;
+   bool asleep;
+   bool reentrant;
+   int  sleepPin;
    int  minimumCSQ;
    bool useWorkaround;
 
-	// Internal utilities
-	bool smartWait(int seconds);
-	bool waitForATResponse(char *response=NULL, int responseSize=0, const char *prompt=NULL, const char *terminator="OK\r\n");
+   // Internal utilities
+   bool smartWait(int seconds);
+   bool waitForATResponse(char *response=NULL, int responseSize=0, const char *prompt=NULL, const char *terminator="OK\r\n");
 
-	int  internalBegin();
-	int  internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *txData, size_t txDataSize, uint8_t *rxBuffer, size_t *prxBufferSize);
-	int  internalGetSignalQuality(int &quality);
+   int  internalBegin();
+   int  internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *txData, size_t txDataSize, uint8_t *rxBuffer, size_t *prxBufferSize);
+   int  internalGetSignalQuality(int &quality);
    int  internalMSSTMWorkaround(bool &okToProceed);
-	int  internalSleep();
+   int  internalSleep();
 
    int  doSBDIX(uint16_t &moCode, uint16_t &moMSN, uint16_t &mtCode, uint16_t &mtMSN, uint16_t &mtLen, uint16_t &mtRemaining);
-	int  doSBDRB(uint8_t *rxBuffer, size_t *prxBufferSize); // in/out
-	void power(bool on);
+   int  doSBDRB(uint8_t *rxBuffer, size_t *prxBufferSize); // in/out
+   void power(bool on);
 
-	void send(FlashString str, bool beginLine = true, bool endLine = true);
-	void send(const char *str);
-	void send(uint16_t n);
+   void send(FlashString str, bool beginLine = true, bool endLine = true);
+   void send(const char *str);
+   void send(uint16_t n);
 
-	bool cancelled();
+   bool cancelled();
 
-	void dbg(FlashString str);
-	void dbg(const char *str);
-	void dbg(uint16_t n);
-	void dbg(char c);
+   void dbg(FlashString str);
+   void dbg(const char *str);
+   void dbg(uint16_t n);
+   void dbg(char c);
 
    void console(FlashString str);
-	void console(const char *str);
+   void console(const char *str);
    void console(uint16_t n);
-	void console(char c);
+   void console(char c);
 };

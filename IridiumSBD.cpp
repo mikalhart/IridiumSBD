@@ -376,22 +376,22 @@ int IridiumSBD::internalGetSignalQuality(int &quality)
 int IridiumSBD::internalMSSTMWorkaround(bool &okToProceed)
 {
    /*
-      According to Iridium 9602 Product Bulletin of 7 May 2013, to overcome a system erratum:
+   According to Iridium 9602 Product Bulletin of 7 May 2013, to overcome a system erratum:
 
-      "Before attempting any of the following commands: +SBDDET, +SBDREG, +SBDI, +SBDIX, +SBDIXA the field application 
-      should issue the AT command –MSSTM to the transceiver and evaluate the response to determine if it is valid or not:
+   "Before attempting any of the following commands: +SBDDET, +SBDREG, +SBDI, +SBDIX, +SBDIXA the field application 
+   should issue the AT command –MSSTM to the transceiver and evaluate the response to determine if it is valid or not:
 
-      Valid Response: "---MSSTM: XXXXXXXX" where XXXXXXXX is an eight---digit hexadecimal number.
+   Valid Response: "---MSSTM: XXXXXXXX" where XXXXXXXX is an eight---digit hexadecimal number.
 
-      Invalid Response: "---MSSTM: no network service"
+   Invalid Response: "---MSSTM: no network service"
 
-      If the response is invalid, the field application should wait and recheck system time until a valid response is 
-      obtained before proceeding. 
+   If the response is invalid, the field application should wait and recheck system time until a valid response is 
+   obtained before proceeding. 
 
-      This will ensure that the Iridium SBD transceiver has received a valid system time before attempting SBD communication. 
-      The Iridium SBD transceiver will receive the valid system time from the Iridium network when it has a good link to the 
-      satellite. Ensuring that the received signal strength reported in response to AT command +CSQ and +CIER is above 2---3 bars 
-      before attempting SBD communication will protect against lockout.
+   This will ensure that the Iridium SBD transceiver has received a valid system time before attempting SBD communication. 
+   The Iridium SBD transceiver will receive the valid system time from the Iridium network when it has a good link to the 
+   satellite. Ensuring that the received signal strength reported in response to AT command +CSQ and +CIER is above 2---3 bars 
+   before attempting SBD communication will protect against lockout.
    */
    char msstmResponseBuf[24];
 
@@ -660,7 +660,7 @@ int IridiumSBD::doSBDRB(uint8_t *rxBuffer, size_t *prxBufferSize)
 void IridiumSBD::power(bool on)
 {
    static unsigned long lastPowerOnTime = 0UL;
-   
+
    if (this->sleepPin == -1)
       return;
 

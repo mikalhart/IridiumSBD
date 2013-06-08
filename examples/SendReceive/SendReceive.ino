@@ -11,8 +11,8 @@ void setup()
   Serial.begin(115200);
   nss.begin(19200);
 
-//  isbd.attachConsole(Serial);
-//  isbd.attachDiags(Serial);
+  isbd.attachConsole(Serial);
+  isbd.attachDiags(Serial);
 
   isbd.begin();
 
