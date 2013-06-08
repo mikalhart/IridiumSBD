@@ -1,0 +1,46 @@
+#######################################
+# Syntax Coloring Map for IridiumSBD
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+IridiumSBD	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+begin	KEYWORD2
+sendSBDBinary	KEYWORD2
+sendReceiveSBDBinary	KEYWORD2
+sendSBDText	KEYWORD2
+sendReceiveSBDText	KEYWORD2
+getSignalQuality	KEYWORD2
+getWaitingMessageCount	KEYWORD2
+sleep	KEYWORD2
+isAsleep	KEYWORD2
+setPowerProfile	KEYWORD2
+adjustATTimeout	KEYWORD2
+adjustSendReceiveTimeout	KEYWORD2
+setMinimumSignalQuality	KEYWORD2
+useMSSTMWorkaround	KEYWORD2
+attachConsole	KEYWORD2
+attachDiags	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+ISBD_SUCCESS	LITERAL1
+ISBD_ALREADY_AWAKE	LITERAL1
+ISBD_SERIAL_FAILURE	LITERAL1
+ISBD_PROTOCOL_ERROR	LITERAL1
+ISBD_CANCELLED	LITERAL1
+ISBD_NO_MODEM_DETECTED	LITERAL1
+ISBD_SBDIX_FATAL_ERROR	LITERAL1
+ISBD_SENDRECEIVE_TIMEOUT	LITERAL1
+ISBD_RX_OVERFLOW	LITERAL1
+ISBD_REENTRANT	LITERAL1
+ISBD_IS_ASLEEP	LITERAL1
