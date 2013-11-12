@@ -442,8 +442,8 @@ bool IridiumSBD::waitForATResponse(char *response, int responseSize, const char 
    bool done = false;
    int matchPromptPos = 0; // Matches chars in prompt
    int matchTerminatorPos = 0; // Matches chars in terminator
-   // 0=prompt not seen, 1=prompt seen, gathering response, 2=response gathered, looking for terminator
-   int promptState = prompt ? 0 : 2;
+   enum {LOOKING_FOR_PROMPT, GATHERING_RESPONSE, LOOKING_FOR_TERMINATOR}
+   int promptState = prompt ? LOOKING_FOR_PROMPT : LOOKING_FOR_TERMINATOR;
    console(F("<< "));
    for (unsigned long start=millis(); millis() - start < 1000UL * atTimeout;)
    {
@@ -457,12 +457,12 @@ bool IridiumSBD::waitForATResponse(char *response, int responseSize, const char 
          if (prompt)
             switch(promptState)
          {
-            case 0: // matching prompt
+            case LOOKING_FOR_PROMPT:
                if (c == prompt[matchPromptPos])
                {
                   ++matchPromptPos;
                   if (prompt[matchPromptPos] == '\0')
-                     promptState = 1;
+                     promptState = GATHERING_RESPONSE;
                }
 
                else
@@ -471,12 +471,12 @@ bool IridiumSBD::waitForATResponse(char *response, int responseSize, const char 
                }
 
                break;
-            case 1: // gathering reponse from end of prompt to first \r
+            case GATHERING_RESPONSE: // gathering reponse from end of prompt to first \r
                if (response)
                {
                   if (c == '\r' || responseSize < 2)
                   {
-                     promptState = 2;
+                     promptState = LOOKING_FOR_TERMINATOR;
                   }
                   else
                   {
@@ -610,7 +610,8 @@ int IridiumSBD::doSBDRB(uint8_t *rxBuffer, size_t *prxBufferSize)
    console(F("[Binary size:"));
    console(size);
    console(F("]"));
-   for (int i=0; i<size; ++i)
+
+   for (uint16_t bytesRead = 0; bytesRead < size;)
    {
       if (cancelled())
          return ISBD_CANCELLED;
@@ -618,6 +619,7 @@ int IridiumSBD::doSBDRB(uint8_t *rxBuffer, size_t *prxBufferSize)
       if (stream.available())
       {
          uint8_t c = stream.read();
+         bytesRead++;
          if (rxBuffer && prxBufferSize)
             if (*prxBufferSize > 0)
             {
@@ -661,14 +663,16 @@ void IridiumSBD::power(bool on)
 {
    static unsigned long lastPowerOnTime = 0UL;
 
+   this->asleep = !on;
+
    if (this->sleepPin == -1)
       return;
+
+   pinMode(this->sleepPin, OUTPUT);
 
    if (on)
    {
       dbg(F("Powering on RockBLOCK...!\r\n"));
-      this->asleep = false;
-      pinMode(this->sleepPin, OUTPUT);
       digitalWrite(this->sleepPin, HIGH); // HIGH = awake
       lastPowerOnTime = millis();
    }
@@ -682,8 +686,6 @@ void IridiumSBD::power(bool on)
          delay(elapsed);
 
       dbg(F("Powering off RockBLOCK...!\r\n"));
-      this->asleep = true;
-      pinMode(this->sleepPin, OUTPUT);
       digitalWrite(this->sleepPin, LOW); // LOW = asleep
    }
 }
