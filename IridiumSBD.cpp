@@ -379,7 +379,7 @@ int IridiumSBD::internalMSSTMWorkaround(bool &okToProceed)
    According to Iridium 9602 Product Bulletin of 7 May 2013, to overcome a system erratum:
 
    "Before attempting any of the following commands: +SBDDET, +SBDREG, +SBDI, +SBDIX, +SBDIXA the field application 
-   should issue the AT command –MSSTM to the transceiver and evaluate the response to determine if it is valid or not:
+   should issue the AT command ï¿½MSSTM to the transceiver and evaluate the response to determine if it is valid or not:
 
    Valid Response: "---MSSTM: XXXXXXXX" where XXXXXXXX is an eight---digit hexadecimal number.
 
@@ -442,7 +442,7 @@ bool IridiumSBD::waitForATResponse(char *response, int responseSize, const char 
    bool done = false;
    int matchPromptPos = 0; // Matches chars in prompt
    int matchTerminatorPos = 0; // Matches chars in terminator
-   enum {LOOKING_FOR_PROMPT, GATHERING_RESPONSE, LOOKING_FOR_TERMINATOR}
+   enum {LOOKING_FOR_PROMPT, GATHERING_RESPONSE, LOOKING_FOR_TERMINATOR};
    int promptState = prompt ? LOOKING_FOR_PROMPT : LOOKING_FOR_TERMINATOR;
    console(F("<< "));
    for (unsigned long start=millis(); millis() - start < 1000UL * atTimeout;)
