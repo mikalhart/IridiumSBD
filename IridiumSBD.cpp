@@ -2,7 +2,7 @@
 IridiumSBD - An Arduino library for Iridium SBD ("Short Burst Data") Communications
 Suggested and generously supported by Rock Seven Location Technology
 (http://rock7mobile.com), makers of the brilliant RockBLOCK satellite modem.
-Copyright (C) 2013 Mikal Hart
+Copyright (C) 2013-4 Mikal Hart
 All rights reserved.
 
 The latest version of this library is available at http://arduiniana.org.
@@ -400,7 +400,7 @@ int IridiumSBD::internalMSSTMWorkaround(bool &okToProceed)
       return cancelled() ? ISBD_CANCELLED : ISBD_PROTOCOL_ERROR;
 
    // Response buf now contains either an 8-digit number or the string "no network service"
-   okToProceed = isdigit(msstmResponseBuf[0]);
+   okToProceed = isxdigit(msstmResponseBuf[0]);
    return ISBD_SUCCESS;
 }
 
