@@ -256,7 +256,7 @@ int IridiumSBD::internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *
       }
 
       console(F("["));
-      console(txDataSize);
+      console((uint16_t)txDataSize);
       console(F(" bytes]"));
 
       dbg(F("Checksum:"));
