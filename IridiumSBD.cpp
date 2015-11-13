@@ -191,7 +191,7 @@ Private interface
 
 int IridiumSBD::internalBegin()
 {
-   dbg(F("Calling internalBegin\r\n"));
+   diag.print(F("Calling internalBegin\r\n"));
 
    if (!this->asleep)
       return ISBD_ALREADY_AWAKE;
@@ -216,7 +216,7 @@ int IridiumSBD::internalBegin()
 
    if (!modemAlive)
    {
-      dbg(F("No modem detected.\r\n"));
+      diag.print(F("No modem detected.\r\n"));
       return ISBD_NO_MODEM_DETECTED;
    }
 
@@ -228,13 +228,13 @@ int IridiumSBD::internalBegin()
          return cancelled() ? ISBD_CANCELLED : ISBD_PROTOCOL_ERROR;
    }
 
-   dbg(F("InternalBegin: success!\r\n"));
+   diag.print(F("InternalBegin: success!\r\n"));
    return ISBD_SUCCESS;
 }
 
 int IridiumSBD::internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *txData, size_t txDataSize, uint8_t *rxBuffer, size_t *prxBufferSize)
 {
-   dbg(F("internalSendReceive\r\n")); 
+   diag.print(F("internalSendReceive\r\n")); 
 
    if (this->asleep)
       return ISBD_IS_ASLEEP;
@@ -255,13 +255,14 @@ int IridiumSBD::internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *
          checksum += (uint16_t)txData[i];
       }
 
-      console(F("["));
-      console(txDataSize);
-      console(F(" bytes]"));
+      cons.print(F("["));
+      cons.print(txDataSize);
+      cons.print(F(" bytes]"));
 
-      dbg(F("Checksum:"));
-      dbg(checksum);
-      dbg(F("\r\n"));
+      diag.print(F("Checksum:"));
+      diag.print(checksum);
+      diag.print(F("\r\n"));
+
       stream.write(checksum >> 8);
       stream.write(checksum & 0xFF);
 
@@ -303,18 +304,18 @@ int IridiumSBD::internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *
          if (ret != ISBD_SUCCESS)
             return ret;
 
-         dbg(F("SBDIX MO code: "));
-         dbg(moCode);
-         dbg(F("\r\n"));
+         diag.print(F("SBDIX MO code: "));
+         diag.print(moCode);
+         diag.print(F("\r\n"));
 
          if (moCode >= 0 && moCode <= 4) // successful return!
          {
-            dbg(F("SBDIX success!\r\n"));
+            diag.print(F("SBDIX success!\r\n"));
 
             this->remainingMessages = mtRemaining;
             if (mtCode == 1 && rxBuffer) // retrieved 1 message
             {
-               dbg(F("Incoming message!\r\n"));
+               diag.print(F("Incoming message!\r\n"));
                return doSBDRB(rxBuffer, prxBufferSize);
             }
 
@@ -329,13 +330,13 @@ int IridiumSBD::internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *
 
          else if (moCode == 12 || moCode == 14 || moCode == 16) // fatal failure: no retry
          {
-            dbg(F("SBDIX fatal!\r\n"));
+            diag.print(F("SBDIX fatal!\r\n"));
             return ISBD_SBDIX_FATAL_ERROR;
          }
 
          else // retry      
          {
-            dbg(F("Waiting for SBDIX retry...\r\n"));
+            diag.print(F("Waiting for SBDIX retry...\r\n"));
             if (!smartWait(sbdixInterval))
                return ISBD_CANCELLED;
          }
@@ -343,13 +344,13 @@ int IridiumSBD::internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *
 
       else // signal strength == 0
       {
-         dbg(F("Waiting for CSQ retry...\r\n"));
+         diag.print(F("Waiting for CSQ retry...\r\n"));
          if (!smartWait(csqInterval))
             return ISBD_CANCELLED;
       }
    } // big wait loop
 
-   dbg(F("SBDIX timeout!\r\n"));
+   diag.print(F("SBDIX timeout!\r\n"));
    return ISBD_SENDRECEIVE_TIMEOUT;
 }
 
@@ -432,9 +433,9 @@ bool IridiumSBD::smartWait(int seconds)
 // stored in response buffer for later parsing by caller.
 bool IridiumSBD::waitForATResponse(char *response, int responseSize, const char *prompt, const char *terminator)
 {
-   dbg(F("Waiting for response "));
-   dbg(terminator);
-   dbg(F("\r\n"));
+   diag.print(F("Waiting for response "));
+   diag.print(terminator);
+   diag.print(F("\r\n"));
 
    if (response)
       memset(response, 0, responseSize);
@@ -444,7 +445,7 @@ bool IridiumSBD::waitForATResponse(char *response, int responseSize, const char 
    int matchTerminatorPos = 0; // Matches chars in terminator
    enum {LOOKING_FOR_PROMPT, GATHERING_RESPONSE, LOOKING_FOR_TERMINATOR};
    int promptState = prompt ? LOOKING_FOR_PROMPT : LOOKING_FOR_TERMINATOR;
-   console(F("<< "));
+   cons.print(F("<< "));
    for (unsigned long start=millis(); millis() - start < 1000UL * atTimeout;)
    {
       if (cancelled())
@@ -453,7 +454,7 @@ bool IridiumSBD::waitForATResponse(char *response, int responseSize, const char 
       while (stream.available() > 0)
       {
          char c = stream.read();
-         console(c);
+         cons.print(c);
          if (prompt)
             switch(promptState)
          {
@@ -510,62 +511,6 @@ bool IridiumSBD::cancelled()
    return false;
 }
 
-void IridiumSBD::dbg(FlashString msg)
-{
-#if ISBD_DIAGS
-   if (this->pDiagsStream)
-      pDiagsStream->print(msg);
-#endif
-}
-
-void IridiumSBD::dbg(const char *msg)
-{
-#if ISBD_DIAGS
-   if (this->pDiagsStream)
-      pDiagsStream->print(msg);
-#endif
-}
-
-void IridiumSBD::dbg(uint16_t n)
-{
-#if ISBD_DIAGS
-   if (this->pDiagsStream)
-      pDiagsStream->print(n);
-#endif
-}
-
-void IridiumSBD::dbg(char c)
-{
-#if ISBD_DIAGS
-   if (this->pDiagsStream)
-      pDiagsStream->print(c);
-#endif
-}
-
-void IridiumSBD::console(FlashString msg)
-{
-   if (this->pConsoleStream)
-      pConsoleStream->print(msg);
-}
-
-void IridiumSBD::console(const char *msg)
-{
-   if (this->pConsoleStream)
-      pConsoleStream->print(msg);
-}
-
-void IridiumSBD::console(char c)
-{
-   if (this->pConsoleStream)
-      pConsoleStream->print(c);
-}
-
-void IridiumSBD::console(uint16_t n)
-{
-   if (this->pConsoleStream)
-      pConsoleStream->print(n);
-}
-
 int IridiumSBD::doSBDIX(uint16_t &moCode, uint16_t &moMSN, uint16_t &mtCode, uint16_t &mtMSN, uint16_t &mtLen, uint16_t &mtRemaining)
 {
    // xx, xxxxx, xx, xxxxx, xx, xxx
@@ -607,9 +552,9 @@ int IridiumSBD::doSBDRB(uint8_t *rxBuffer, size_t *prxBufferSize)
       return ISBD_SENDRECEIVE_TIMEOUT;
 
    uint16_t size = 256 * stream.read() + stream.read();
-   console(F("[Binary size:"));
-   console(size);
-   console(F("]"));
+   cons.print(F("[Binary size:"));
+   cons.print(size);
+   cons.print(F("]"));
 
    for (uint16_t bytesRead = 0; bytesRead < size;)
    {
@@ -648,9 +593,9 @@ int IridiumSBD::doSBDRB(uint8_t *rxBuffer, size_t *prxBufferSize)
       return ISBD_SENDRECEIVE_TIMEOUT;
 
    uint16_t checksum = 256 * stream.read() + stream.read();
-   console(F("[csum:"));
-   console(checksum);
-   console(F("]"));
+   cons.print(F("[csum:"));
+   cons.print(checksum);
+   cons.print(F("]"));
 
    // Return actual size of returned buffer
    if (prxBufferSize) 
@@ -661,8 +606,6 @@ int IridiumSBD::doSBDRB(uint8_t *rxBuffer, size_t *prxBufferSize)
 
 void IridiumSBD::power(bool on)
 {
-   static unsigned long lastPowerOnTime = 0UL;
-
    this->asleep = !on;
 
    if (this->sleepPin == -1)
@@ -672,7 +615,7 @@ void IridiumSBD::power(bool on)
 
    if (on)
    {
-      dbg(F("Powering on RockBLOCK...!\r\n"));
+      diag.print(F("Powering on RockBLOCK...!\r\n"));
       digitalWrite(this->sleepPin, HIGH); // HIGH = awake
       lastPowerOnTime = millis();
    }
@@ -683,9 +626,9 @@ void IridiumSBD::power(bool on)
       // before powering off again
       unsigned long elapsed = millis() - lastPowerOnTime;
       if (elapsed < 2000UL)
-         delay(elapsed);
+         delay(2000UL - elapsed);
 
-      dbg(F("Powering off RockBLOCK...!\r\n"));
+      diag.print(F("Powering off RockBLOCK...!\r\n"));
       digitalWrite(this->sleepPin, LOW); // LOW = asleep
    }
 }
@@ -693,21 +636,21 @@ void IridiumSBD::power(bool on)
 void IridiumSBD::send(FlashString str, bool beginLine, bool endLine)
 {
    if (beginLine)
-      console(F(">> "));
-   console(str);
+      cons.print(F(">> "));
+   cons.print(str);
    if (endLine)
-      console(F("\r\n"));
+      cons.print(F("\r\n"));
    stream.print(str);
 }
 
 void IridiumSBD::send(const char *str)
 {
-   console(str);
+   cons.print(str);
    stream.print(str);
 }
 
 void IridiumSBD::send(uint16_t n)
 {
-   console(n);
+   cons.print(n);
    stream.print(n);
 }

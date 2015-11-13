@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <Stream.h> // for Stream
 #include "Arduino.h"
 
-#define ISBD_LIBRARY_REVISION           1
+#define ISBD_LIBRARY_REVISION           2
 
 #define ISBD_DIAGS                      1
 
@@ -52,7 +52,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define ISBD_IS_ASLEEP           10
 #define ISBD_NO_SLEEP_PIN        11
 
-extern bool ISBDCallback() __attribute__ ((weak));
+extern bool ISBDCallback() __attribute__((weak));
+extern void ConsoleCallback(uint8_t c) __attribute__((weak));
+extern void DiagsCallback(uint8_t c) __attribute__((weak));
 typedef const __FlashStringHelper *FlashString;
 
 class IridiumSBD
@@ -80,7 +82,7 @@ public:
    void attachDiags(Stream &stream);
 #endif
 
-   IridiumSBD(Stream &str, int sleepPinNo = -1) : 
+   IridiumSBD(Stream &str, int sleepPinNo = -1) :
       stream(str),
       pConsoleStream(NULL),
 #if ISBD_DIAGS
@@ -95,17 +97,50 @@ public:
       reentrant(false),
       sleepPin(sleepPinNo),
       minimumCSQ(ISBD_DEFAULT_CSQ_MINIMUM),
-      useWorkaround(true)
+      useWorkaround(true),
+      lastPowerOnTime(0UL),
+      diag(this, true),
+      cons(this, false)
    {
-      pinMode(sleepPin, OUTPUT);
+      if (sleepPin != -1)
+         pinMode(sleepPin, OUTPUT);
    }
 
 private:
-   Stream &stream;
-   Stream *pConsoleStream;
+   Stream &stream; // Communicating with the Iridium
+   Stream *pConsoleStream; // user provided; for debugging the serial stream
 #if ISBD_DIAGS
-   Stream *pDiagsStream;
+   Stream *pDiagsStream;   // diagnostic messages
 #endif
+
+   class StreamShim : public Print
+   {
+   private:
+      bool diags;
+      IridiumSBD *isbd;
+   public:
+//      StreamShim(Stream *s, void(*f)(char c) __attribute__((weak))) : stream(s), callback(f) {}
+      StreamShim(IridiumSBD *isbd, bool d) : isbd(isbd), diags(d) {}
+      virtual size_t write(uint8_t b)
+      {
+         if (diags)
+         {
+            if (isbd->pDiagsStream)
+               isbd->pDiagsStream->write(b);
+         }
+         else
+         {
+            if (isbd->pConsoleStream)
+               isbd->pConsoleStream->write(b);
+         }
+         void(*f)(uint8_t b) = diags ? DiagsCallback : ConsoleCallback;
+         if (f) f(b);
+         return 1;
+      }
+   };
+   
+   StreamShim diag;
+   StreamShim cons;
 
    // Timings
    int csqInterval;
@@ -120,6 +155,7 @@ private:
    int  sleepPin;
    int  minimumCSQ;
    bool useWorkaround;
+   unsigned long lastPowerOnTime;
 
    // Internal utilities
    bool smartWait(int seconds);
@@ -140,14 +176,4 @@ private:
    void send(uint16_t n);
 
    bool cancelled();
-
-   void dbg(FlashString str);
-   void dbg(const char *str);
-   void dbg(uint16_t n);
-   void dbg(char c);
-
-   void console(FlashString str);
-   void console(const char *str);
-   void console(uint16_t n);
-   void console(char c);
 };
