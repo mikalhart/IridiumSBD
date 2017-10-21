@@ -1,0 +1,22 @@
+{
+  "name": "IridiumSBD",
+  "version" : "1.0.0",
+  "keywords": "Iridium,satellite,9602,9603,RockBLOCK",
+  "description": "A driver for controlling Iridium 9602/9603 satellite modems for Short Burst Data communications",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/mikalhart/IridiumSBD.git"
+  },
+  "authors": 
+  [
+    {
+      "name": "Mikal Hart",
+      "email": "mhcom@sundial.com",
+      "url": "http://arduiniana.org",
+      "maintainer": true
+    }
+  ],
+  "frameworks": "arduino",
+  "platforms": "*"
+}

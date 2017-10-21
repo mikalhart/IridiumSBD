@@ -1,23 +1,32 @@
 #include <IridiumSBD.h>
-#include <SoftwareSerial.h>
-#include <TinyGPS.h> // NMEA parsing: http://arduiniana.org
-#include <PString.h> // String buffer formatting: http://arduiniana.org
+#include <TinyGPS++.h> // NMEA parsing: http://arduiniana.org
 
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <avr/common.h>
-#include <avr/wdt.h>
-#include <avr/sleep.h>
+/*
+ * Beacon
+ * 
+ * This sketch shows how you might use a GPS with the satellite modem
+ * to create a beacon device that periodically transmits a location
+ * message to the configured endpoints.
+ * 
+ * Assumptions
+ * 
+ * The sketch assumes an Arduino Mega or other Arduino-like device with
+ * multiple HardwareSerial ports.  It assumes the satellite modem is
+ * connected to Serial3.  Change this as needed.  SoftwareSerial on an Uno
+ * works fine as well.  This assumes a 9600 baud GPS is connected to Serial2
+ */
 
-// Time between transmissions
+#define IridiumSerial Serial3
+#define GPSSerial Serial2
+#define GPSBaud 9600
+#define DIAGNOSTICS false // Change this to see diagnostics
+
+// Time between transmissions (seconds)
 #define BEACON_INTERVAL 3600
 
-SoftwareSerial ssIridium(18, 19);
-SoftwareSerial ssGPS(3, 4);
-IridiumSBD isbd(ssIridium, 10);
-TinyGPS tinygps;
+IridiumSBD modem(IridiumSerial);
+TinyGPSPlus tinygps;
 static const int ledPin = 13;
-int iterationCounter = 0;
 
 void setup()
 {
@@ -25,154 +34,113 @@ void setup()
 
   // Start the serial ports
   Serial.begin(115200);
+  while (!Serial);
+  IridiumSerial.begin(19200);
+  GPSSerial.begin(GPSBaud);
 
-  // Setup the RockBLOCK
-  isbd.attachConsole(Serial);
-  isbd.attachDiags(Serial);
-  isbd.setPowerProfile(1);
-  isbd.useMSSTMWorkaround(false);
+  // Assume battery power
+  modem.setPowerProfile(IridiumSBD::DEFAULT_POWER_PROFILE);
+
+  // Setup the Iridium modem
+  if (modem.begin() != ISBD_SUCCESS)
+  {
+    Serial.println("Couldn't begin modem operations.");
+    exit(0);
+  }
 }
 
 void loop()
 {
-  int year;
-  byte month, day, hour, minute, second, hundredths;
-  unsigned long dateFix, locationFix;
-  float latitude, longitude;
-  long altitude;
-  bool fixFound = false;
-  bool charsSeen = false;
   unsigned long loopStartTime = millis();
 
-  // Step 0: Start the serial ports
-  ssIridium.begin(19200);
-  ssGPS.begin(4800);
-
-  // Step 1: Reset TinyGPS and begin listening to the GPS
+  // Begin listening to the GPS
   Serial.println("Beginning to listen for GPS traffic...");
-  tinygps = TinyGPS();
-  ssGPS.listen();
 
-  // Step 2: Look for GPS signal for up to 7 minutes
-  for (unsigned long now = millis(); !fixFound && millis() - now < 7UL * 60UL * 1000UL;)
+  // Look for GPS signal for up to 7 minutes
+  while ((!tinygps.location.isValid() || !tinygps.date.isValid()) && 
+    millis() - loopStartTime < 7UL * 60UL * 1000UL)
   {
-    if (ssGPS.available())
-    {
-      charsSeen = true;
-      if (tinygps.encode(ssGPS.read()))
-      {
-        tinygps.f_get_position(&latitude, &longitude, &locationFix);
-        tinygps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &dateFix);
-        altitude = tinygps.altitude();
-        fixFound = locationFix != TinyGPS::GPS_INVALID_FIX_TIME && 
-                   dateFix != TinyGPS::GPS_INVALID_FIX_TIME && 
-                   altitude != TinyGPS::GPS_INVALID_ALTITUDE &&
-                   year != 2000;
-      }
-    }
-    ISBDCallback(); // We can call it during our GPS loop too.
-
-    // if we haven't seen any GPS in 5 seconds, then the wiring is wrong.
-    if (!charsSeen && millis() - now > 5000)
-    break;
+    if (GPSSerial.available())
+      tinygps.encode(GPSSerial.read());
   }
 
-  Serial.println(charsSeen ? fixFound ? F("A GPS fix was found!") : F("No GPS fix was found.") : F("Wiring error: No GPS data seen."));
+  // Did we get a GPS fix?
+  if (!tinygps.location.isValid())
+  {
+    Serial.println(F("Could not get GPS fix."));
+    Serial.print(F("GPS characters seen = "));
+    Serial.println(tinygps.charsProcessed());
+    Serial.print(F("Checksum errors = "));
+    Serial.println(tinygps.failedChecksum());
+    return;
+  }
+
+  Serial.println(F("A GPS fix was found!"));
 
   // Step 3: Start talking to the RockBLOCK and power it up
   Serial.println("Beginning to talk to the RockBLOCK...");
-  ssIridium.listen();
-  ++iterationCounter;
-  if (isbd.begin() == ISBD_SUCCESS)
-  {
-    char outBuffer[60]; // Always try to keep message short
-
-    if (fixFound)
-    {
-      sprintf(outBuffer, "%d%02d%02d%02d%02d%02d,", year, month, day, hour, minute, second);
-      int len = strlen(outBuffer);
-      PString str(outBuffer + len, sizeof(outBuffer) - len);
-      str.print(latitude, 6);
-      str.print(",");
-      str.print(longitude, 6);
-      str.print(",");
-      str.print(altitude / 100);
-      str.print(",");
-      str.print(tinygps.f_speed_knots(), 1);
-      str.print(",");
-      str.print(tinygps.course() / 100);
-    }
-
-    else
-    {
-      sprintf(outBuffer, "%d: No GPS fix found!", iterationCounter);
-    }
+  char outBuffer[60]; // Always try to keep message short
+  sprintf(outBuffer, "%d%02d%02d%02d%02d%02d,%s%u.%09lu,%s%u.%09lu,%lu,%ld", 
+    tinygps.date.year(), 
+    tinygps.date.month(), 
+    tinygps.date.day(), 
+    tinygps.time.hour(), 
+    tinygps.time.minute(), 
+    tinygps.time.second(),
+    tinygps.location.rawLat().negative ? "-" : "",
+    tinygps.location.rawLat().deg,
+    tinygps.location.rawLat().billionths,
+    tinygps.location.rawLng().negative ? "-" : "",
+    tinygps.location.rawLng().deg,
+    tinygps.location.rawLng().billionths,
+    tinygps.speed.value() / 100,
+    tinygps.course.value() / 100);
 
     Serial.print("Transmitting message '");
     Serial.print(outBuffer);
     Serial.println("'");
-    isbd.sendSBDText(outBuffer);
 
-    Serial.println("Putting RockBLOCK in sleep mode...");
-    isbd.sleep();
+  int err = modem.sendSBDText(outBuffer);
+  if (err != ISBD_SUCCESS)
+  {
+    Serial.print("Transmission failed with error code ");
+    Serial.println(err);
   }
 
   // Sleep
-  Serial.println("Going to sleep mode for about an hour...");
-  ssIridium.end();
-  ssGPS.end();
-  delay(1000); // Wait for serial ports to clear
-  digitalWrite(ledPin, LOW);
-  pinMode(ledPin, INPUT);
   int elapsedSeconds = (int)((millis() - loopStartTime) / 1000);
   if (elapsedSeconds < BEACON_INTERVAL)
-    bigSleep(BEACON_INTERVAL - elapsedSeconds); // wait about an hour
+  {
+    int delaySeconds = BEACON_INTERVAL - elapsedSeconds;
+    Serial.print(F("Waiting for "));
+    Serial.println(delaySeconds);
+    Serial.println(F(" seconds"));
+    delay(1000UL * delaySeconds);
+  }
 
   // Wake
   Serial.println("Wake up!");
-  pinMode(ledPin, OUTPUT);
+}
+
+void blinkLED()
+{
+  digitalWrite(ledPin, (millis() / 1000) % 2 == 1 ? HIGH : LOW);
 }
 
 bool ISBDCallback()
 {
-  digitalWrite(ledPin, (millis() / 1000) % 2 == 1 ? HIGH : LOW);
+  blinkLED();
   return true;
 }
 
-// Sleep stuff
-SIGNAL(WDT_vect) {
-  wdt_disable();
-  wdt_reset();
-  WDTCSR &= ~_BV(WDIE);
-}
-
-void babySleep(uint8_t wdt_period) 
+#if DIAGNOSTICS
+void ISBDConsoleCallback(IridiumSBD *device, char c)
 {
-  wdt_enable(wdt_period);
-  wdt_reset();
-  WDTCSR |= _BV(WDIE);
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-  sleep_mode();
-  wdt_disable();
-  WDTCSR &= ~_BV(WDIE);
+  Serial.write(c);
 }
 
-void smallSleep(int milliseconds) {
-  while (milliseconds >= 8000) { babySleep(WDTO_8S); milliseconds -= 8000; }
-  if (milliseconds >= 4000)    { babySleep(WDTO_4S); milliseconds -= 4000; }
-  if (milliseconds >= 2000)    { babySleep(WDTO_2S); milliseconds -= 2000; }
-  if (milliseconds >= 1000)    { babySleep(WDTO_1S); milliseconds -= 1000; }
-  if (milliseconds >= 500)     { babySleep(WDTO_500MS); milliseconds -= 500; }
-  if (milliseconds >= 250)     { babySleep(WDTO_250MS); milliseconds -= 250; }
-  if (milliseconds >= 125)     { babySleep(WDTO_120MS); milliseconds -= 120; }
-  if (milliseconds >= 64)      { babySleep(WDTO_60MS); milliseconds -= 60; }
-  if (milliseconds >= 32)      { babySleep(WDTO_30MS); milliseconds -= 30; }
-  if (milliseconds >= 16)      { babySleep(WDTO_15MS); milliseconds -= 15; }
-}
-
-void bigSleep(int seconds)
+void ISBDDiagsCallback(IridiumSBD *device, char c)
 {
-   while (seconds > 8) { smallSleep(8000); seconds -= 8;	}
-   smallSleep(1000 * seconds);
+  Serial.write(c);
 }
-
+#endif

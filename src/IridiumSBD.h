@@ -2,7 +2,7 @@
 IridiumSBD - An Arduino library for Iridium SBD ("Short Burst Data") Communications
 Suggested and generously supported by Rock Seven Location Technology
 (http://rock7mobile.com), makers of the brilliant RockBLOCK satellite modem.
-Copyright (C) 2013 Mikal Hart
+Copyright (C) 2013-2017 Mikal Hart
 All rights reserved.
 
 The latest version of this library is available at http://arduiniana.org.
@@ -27,17 +27,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "Arduino.h"
 
 #define ISBD_LIBRARY_REVISION           2
-
-#define ISBD_DIAGS                      1
-
 #define ISBD_DEFAULT_AT_TIMEOUT         30
-#define ISBD_DEFAULT_CSQ_INTERVAL       10
-#define ISBD_DEFAULT_CSQ_INTERVAL_USB   20
-#define ISBD_DEFAULT_SBDIX_INTERVAL     30
-#define ISBD_DEFAULT_SBDIX_INTERVAL_USB 30
+#define ISBD_MSSTM_RETRY_INTERVAL       10
+#define ISBD_DEFAULT_SBDIX_INTERVAL     10
+#define ISBD_USB_SBDIX_INTERVAL         30
 #define ISBD_DEFAULT_SENDRECEIVE_TIME   300
 #define ISBD_STARTUP_MAX_TIME           240
-#define ISBD_DEFAULT_CSQ_MINIMUM        2
+#define ISBD_MAX_MESSAGE_LENGTH         340
+#define ISBD_MSSTM_WORKAROUND_FW_VER    13001
 
 #define ISBD_SUCCESS             0
 #define ISBD_ALREADY_AWAKE       1
@@ -51,10 +48,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define ISBD_REENTRANT           9
 #define ISBD_IS_ASLEEP           10
 #define ISBD_NO_SLEEP_PIN        11
+#define ISBD_NO_NETWORK          12
+#define ISBD_MSG_TOO_LONG        13
 
-extern bool ISBDCallback() __attribute__((weak));
-extern void ConsoleCallback(uint8_t c) __attribute__((weak));
-extern void DiagsCallback(uint8_t c) __attribute__((weak));
 typedef const __FlashStringHelper *FlashString;
 
 class IridiumSBD
@@ -66,84 +62,48 @@ public:
    int sendReceiveSBDText(const char *message, uint8_t *rxBuffer, size_t &rxBufferSize);
    int sendReceiveSBDBinary(const uint8_t *txData, size_t txDataSize, uint8_t *rxBuffer, size_t &rxBufferSize);
    int getSignalQuality(int &quality);
-
+   int getSystemTime(struct tm &tm);
+   int getFirmwareVersion(char *version, size_t bufferSize);
    int getWaitingMessageCount();
-   int sleep();
    bool isAsleep();
+   bool hasRingAsserted();
+   int sleep();
 
-   void setPowerProfile(int profile);          // 0 = direct connect (default), 1 = USB
+   typedef enum { DEFAULT_POWER_PROFILE = 0, USB_POWER_PROFILE = 1 } POWERPROFILE;
+   void setPowerProfile(POWERPROFILE profile); // 0 = direct connect (default), 1 = USB
    void adjustATTimeout(int seconds);          // default value = 20 seconds
    void adjustSendReceiveTimeout(int seconds); // default value = 300 seconds
-   void setMinimumSignalQuality(int quality);  // a number between 1 and 5, default ISBD_DEFAULT_CSQ_MINIMUM
-   void useMSSTMWorkaround(bool useWorkAround); // true to use workaround from Iridium Alert 5/7 
+   void useMSSTMWorkaround(bool useMSSTMWorkAround); // true to use workaround from Iridium Alert 5/7/13
+   void enableRingAlerts(bool enable);
 
-   void attachConsole(Stream &stream);
-#if ISBD_DIAGS
-   void attachDiags(Stream &stream);
-#endif
-
-   IridiumSBD(Stream &str, int sleepPinNo = -1) :
+   IridiumSBD(Stream &str, int sleepPinNo = -1, int ringPinNo = -1) :
       stream(str),
-      pConsoleStream(NULL),
-#if ISBD_DIAGS
-      pDiagsStream(NULL),
-#endif
-      csqInterval(ISBD_DEFAULT_CSQ_INTERVAL),
-      sbdixInterval(ISBD_DEFAULT_SBDIX_INTERVAL),
+      sbdixInterval(ISBD_USB_SBDIX_INTERVAL),
       atTimeout(ISBD_DEFAULT_AT_TIMEOUT),
       sendReceiveTimeout(ISBD_DEFAULT_SENDRECEIVE_TIME),
       remainingMessages(-1),
       asleep(true),
       reentrant(false),
       sleepPin(sleepPinNo),
-      minimumCSQ(ISBD_DEFAULT_CSQ_MINIMUM),
-      useWorkaround(true),
+      ringPin(ringPinNo),
+      msstmWorkaroundRequested(true),
+      ringAlertsEnabled(ringPinNo != -1),
+      ringAsserted(false),
       lastPowerOnTime(0UL),
-      diag(this, true),
-      cons(this, false)
+      head(SBDRING),
+      tail(SBDRING),
+      nextChar(-1)
    {
       if (sleepPin != -1)
          pinMode(sleepPin, OUTPUT);
+      if (ringPin != -1)
+         pinMode(ringPin, INPUT);
    }
 
 private:
    Stream &stream; // Communicating with the Iridium
-   Stream *pConsoleStream; // user provided; for debugging the serial stream
-#if ISBD_DIAGS
-   Stream *pDiagsStream;   // diagnostic messages
-#endif
-
-   class StreamShim : public Print
-   {
-   private:
-      bool diags;
-      IridiumSBD *isbd;
-   public:
-//      StreamShim(Stream *s, void(*f)(char c) __attribute__((weak))) : stream(s), callback(f) {}
-      StreamShim(IridiumSBD *isbd, bool d) : isbd(isbd), diags(d) {}
-      virtual size_t write(uint8_t b)
-      {
-         if (diags)
-         {
-            if (isbd->pDiagsStream)
-               isbd->pDiagsStream->write(b);
-         }
-         else
-         {
-            if (isbd->pConsoleStream)
-               isbd->pConsoleStream->write(b);
-         }
-         void(*f)(uint8_t b) = diags ? DiagsCallback : ConsoleCallback;
-         if (f) f(b);
-         return 1;
-      }
-   };
-   
-   StreamShim diag;
-   StreamShim cons;
 
    // Timings
-   int csqInterval;
    int sbdixInterval;
    int atTimeout;
    int sendReceiveTimeout;
@@ -153,12 +113,14 @@ private:
    bool asleep;
    bool reentrant;
    int  sleepPin;
-   int  minimumCSQ;
-   bool useWorkaround;
+   int  ringPin;
+   bool msstmWorkaroundRequested;
+   bool ringAlertsEnabled;
+   bool ringAsserted;
    unsigned long lastPowerOnTime;
 
    // Internal utilities
-   bool smartWait(int seconds);
+   bool noBlockWait(int seconds);
    bool waitForATResponse(char *response=NULL, int responseSize=0, const char *prompt=NULL, const char *terminator="OK\r\n");
 
    int  internalBegin();
@@ -175,5 +137,29 @@ private:
    void send(const char *str);
    void send(uint16_t n);
 
-   bool cancelled();
+   bool cancelled(); // call ISBDCallback and see if client cancelled the operation
+
+   void diagprint(FlashString str);
+   void diagprint(const char *str);
+   void diagprint(uint16_t n);
+
+   void consoleprint(FlashString str);
+   void consoleprint(const char *str);
+   void consoleprint(uint16_t n);
+   void consoleprint(char c);
+   void SBDRINGSeen();
+
+   // Unsolicited SBDRING filter technology
+   static const char SBDRING[];
+   static const int FILTERTIMEOUT = 10;
+   const char *head, *tail;
+   int nextChar;
+   void filterSBDRING();
+   int filteredavailable();
+   int filteredread();
 };
+
+extern bool ISBDCallback() __attribute__((weak));
+extern void ISBDConsoleCallback(IridiumSBD *device, char c) __attribute__((weak));
+extern void ISBDDiagsCallback(IridiumSBD *device, char c) __attribute__((weak));
+
