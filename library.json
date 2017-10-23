@@ -1,8 +1,8 @@
 {
   "name": "IridiumSBD",
-  "version" : "1.0.0",
+  "version" : "2.0",
   "keywords": "Iridium,satellite,9602,9603,RockBLOCK",
-  "description": "A driver for controlling Iridium 9602/9603 satellite modems for Short Burst Data communications",
+  "description": "A driver for controlling Iridium 9602/9603 satellite modems for Short Burst Data transmissions",
   "repository":
   {
     "type": "git",
