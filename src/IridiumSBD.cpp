@@ -389,7 +389,7 @@ int IridiumSBD::internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *
    }
 
    // Long SBDIX loop begins here
-   for (unsigned long start = millis(); millis() - start < 1000UL * ISBD_DEFAULT_SENDRECEIVE_TIME;)
+   for (unsigned long start = millis(); millis() - start < 1000UL * this->sendReceiveTimeout;)
    {
       bool okToProceed = true;
       if (this->msstmWorkaroundRequested)
