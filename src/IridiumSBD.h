@@ -26,6 +26,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <Stream.h> // for Stream
 #include "Arduino.h"
 
+#ifndef IRIDIUM_SBD
+#define IRIDIUM_SBD
+
 #define ISBD_LIBRARY_REVISION           2
 #define ISBD_DEFAULT_AT_TIMEOUT         30
 #define ISBD_MSSTM_RETRY_INTERVAL       10
@@ -163,3 +166,4 @@ extern bool ISBDCallback() __attribute__((weak));
 extern void ISBDConsoleCallback(IridiumSBD *device, char c) __attribute__((weak));
 extern void ISBDDiagsCallback(IridiumSBD *device, char c) __attribute__((weak));
 
+#endif
