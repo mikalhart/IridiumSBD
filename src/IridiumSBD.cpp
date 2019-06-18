@@ -237,6 +237,18 @@ int IridiumSBD::getFirmwareVersion(char *version, size_t bufferSize)
    return ISBD_SUCCESS;
 }
 
+int IridiumSBD::getIMEI(char *IMEI, size_t bufferSize)
+{
+   if (bufferSize < 8)
+      return ISBD_RX_OVERFLOW;
+
+   send(F("AT+CGSN\r"));
+   if (!waitForATResponse(IMEI, bufferSize, "\n"))
+      return cancelled() ? ISBD_CANCELLED : ISBD_PROTOCOL_ERROR;
+
+   return ISBD_SUCCESS;
+}
+
 /*
 Private interface
 */
