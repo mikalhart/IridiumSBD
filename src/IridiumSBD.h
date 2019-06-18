@@ -64,6 +64,7 @@ public:
    int getSignalQuality(int &quality);
    int getSystemTime(struct tm &tm);
    int getFirmwareVersion(char *version, size_t bufferSize);
+   int getIMEI(char *IMEI, size_t bufferSize);
    int getWaitingMessageCount();
    bool isAsleep();
    bool hasRingAsserted();
