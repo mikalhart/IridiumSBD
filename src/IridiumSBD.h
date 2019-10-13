@@ -158,4 +158,3 @@ private:
    int filteredavailable();
    int filteredread();
 };
-
