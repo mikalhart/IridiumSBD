@@ -464,10 +464,10 @@ int IridiumSBD::internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *
          }
 
          else if (this->oneShot)
-		   {
+         {
 			 diagprint(F("One Shot enabled.\r\n"));
 			 return ISBD_SENDRECEIVE_TIMEOUT;
-		   }
+         }
          
          else // retry
          {
@@ -584,6 +584,9 @@ bool IridiumSBD::waitForATResponse(char *response, int responseSize, const char 
    consoleprint(F("<< "));
    for (unsigned long start=millis(); millis() - start < 1000UL * atTimeout;)
    {
+	  #if defined(__arm__)
+	  asm volatile ("wfi"); //Pause loop until interupt
+	  #endif
       if (cancelled())
          return false;
 
