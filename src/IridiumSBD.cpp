@@ -180,6 +180,11 @@ void IridiumSBD::enableRingAlerts(bool enable) // true to enable SBDRING alerts 
       this->ringAsserted = false;
 }
 
+void IridiumSBD::enableOneShot(bool enable) // true to use workaround from Iridium Alert 5/7 
+{
+   this->oneShot = enable;
+}
+
 bool IridiumSBD::hasRingAsserted()
 {
    if (!ringAlertsEnabled)
@@ -458,6 +463,12 @@ int IridiumSBD::internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *
             return ISBD_SBDIX_FATAL_ERROR;
          }
 
+         else if (this->oneShot)
+		   {
+			 diagprint(F("One Shot enabled.\r\n"));
+			 return ISBD_SENDRECEIVE_TIMEOUT;
+		   }
+         
          else // retry
          {
             diagprint(F("Waiting for SBDIX retry...\r\n"));
