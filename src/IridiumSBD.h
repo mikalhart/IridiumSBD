@@ -159,8 +159,3 @@ private:
    int filteredavailable();
    int filteredread();
 };
-
-extern bool ISBDCallback() __attribute__((weak));
-extern void ISBDConsoleCallback(IridiumSBD *device, char c) __attribute__((weak));
-extern void ISBDDiagsCallback(IridiumSBD *device, char c) __attribute__((weak));
-
