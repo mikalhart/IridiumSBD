@@ -76,6 +76,7 @@ public:
    void adjustSendReceiveTimeout(int seconds); // default value = 300 seconds
    void useMSSTMWorkaround(bool useMSSTMWorkAround); // true to use workaround from Iridium Alert 5/7/13
    void enableRingAlerts(bool enable);
+   void enableOneShot(bool enable);			//SBIDX only attempts once
 
    IridiumSBD(Stream &str, int sleepPinNo = -1, int ringPinNo = -1) :
       stream(str),
@@ -85,6 +86,7 @@ public:
       remainingMessages(-1),
       asleep(true),
       reentrant(false),
+      oneShot(false),
       sleepPin(sleepPinNo),
       ringPin(ringPinNo),
       msstmWorkaroundRequested(true),
@@ -112,6 +114,7 @@ private:
    // State variables  
    int remainingMessages;
    bool asleep;
+   bool oneShot;
    bool reentrant;
    int  sleepPin;
    int  ringPin;
