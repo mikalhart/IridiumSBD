@@ -180,6 +180,11 @@ void IridiumSBD::enableRingAlerts(bool enable) // true to enable SBDRING alerts 
       this->ringAsserted = false;
 }
 
+void IridiumSBD::enableOneShot(bool enable) // true to use workaround from Iridium Alert 5/7 
+{
+   this->oneShot = enable;
+}
+
 bool IridiumSBD::hasRingAsserted()
 {
    if (!ringAlertsEnabled)
@@ -241,6 +246,18 @@ int IridiumSBD::getFirmwareVersion(char *version, size_t bufferSize)
 
    send(F("AT+CGMR\r"));
    if (!waitForATResponse(version, bufferSize, "Call Processor Version: "))
+      return cancelled() ? ISBD_CANCELLED : ISBD_PROTOCOL_ERROR;
+
+   return ISBD_SUCCESS;
+}
+
+int IridiumSBD::getIMEI(char *IMEI, size_t bufferSize)
+{
+   if (bufferSize < 8)
+      return ISBD_RX_OVERFLOW;
+
+   send(F("AT+CGSN\r"));
+   if (!waitForATResponse(IMEI, bufferSize, "\n"))
       return cancelled() ? ISBD_CANCELLED : ISBD_PROTOCOL_ERROR;
 
    return ISBD_SUCCESS;
@@ -446,6 +463,12 @@ int IridiumSBD::internalSendReceiveSBD(const char *txTxtMessage, const uint8_t *
             return ISBD_SBDIX_FATAL_ERROR;
          }
 
+         else if (this->oneShot)
+         {
+			 diagprint(F("One Shot enabled.\r\n"));
+			 return ISBD_SENDRECEIVE_TIMEOUT;
+         }
+         
          else // retry
          {
             diagprint(F("Waiting for SBDIX retry...\r\n"));
@@ -561,6 +584,9 @@ bool IridiumSBD::waitForATResponse(char *response, int responseSize, const char 
    consoleprint(F("<< "));
    for (unsigned long start=millis(); millis() - start < 1000UL * atTimeout;)
    {
+	  #if defined(__arm__)
+	  asm volatile ("wfi"); //Pause loop until interupt
+	  #endif
       if (cancelled())
          return false;
 
