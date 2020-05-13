@@ -8,13 +8,6 @@
    should arrive at the endpoints you have configured (email address or
    HTTP POST).
 
-   Assumptions
-
-   The sketch assumes an Arduino Mega or other Arduino-like device with
-   multiple HardwareSerial ports.  It assumes the satellite modem is
-   connected to Serial3.  Change this as needed.  SoftwareSerial on an Uno
-   works fine as well.
-
    you can't use U0TXD and U0RXD becuase they are used for the programming of the board, quite why Heltec brought these pins
    out to the edge connector I don't know, I suppose to allow an external programmer, who knows.
    The pins that are free are as follows:
@@ -39,8 +32,8 @@
 
 #define IridiumSerial Serial2
 #define DIAGNOSTICS false// Change this to see diagnostics
-#define RXD2 2
-#define TXD2 0
+#define RXD2 12
+#define TXD2 13
 
 // Declare the IridiumSBD object
 IridiumSBD modem(IridiumSerial);
