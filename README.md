@@ -7,4 +7,4 @@ Written by Mikal Hart with generous support from Rock 7 Mobile. For more informa
 See also SparkFun's fork at <https://github.com/sparkfun/SparkFun_IridiumSBD_I2C_Arduino_Library>.
 
 ![Chaos at 99,000 feet: a balloon tracked by IridiumSBD bursts in the stratosphere](image.png)
-Chaos at 99,000 feet: a balloon tracked by IridiumSBD bursts in the stratosphere
+[Chaos at 99,000 feet](https://youtu.be/K4kR_jAHjbw?si=Sfb2kgr-NsW1jJbE): a balloon tracked by IridiumSBD bursts in the stratosphere
